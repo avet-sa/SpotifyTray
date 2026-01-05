@@ -1,35 +1,31 @@
 # SpotifyTray
 
-A minimal, elegant system tray application for Windows that displays Spotify's now playing information with album art and media controls.
+A minimal, elegant system tray application for Windows that shows Spotify's now playing information with album art and media controls.
 
 ## Features
 
-- 🎵 **System Tray Integration** - Displays current song's album art as the tray icon
-- 🎨 **Modern Dark UI** - Beautiful dark-themed widget with rounded corners and shadows
-- 🎮 **Media Controls** - Play/pause, previous, and next track controls
-- 🖼️ **Album Artwork** - Shows full album cover with song, artist, and album information
-- 🎯 **Smart Visibility** - Only appears when Spotify is actively playing
-- 🚀 **Lightweight** - Minimal resource usage, runs quietly in the background
-- 🖱️ **Context Menu** - Right-click to open Spotify or exit the app
-
-## Screenshots
-
-The widget displays:
-- Album cover art (110x110)
-- Song title
-- Artist name
-- Album name
-- Media control buttons (Previous, Play/Pause, Next)
+* 🎵 **System Tray Integration** – Tray icon shows album art while music is playing
+* 🎮 **Media Controls** – Play/pause, previous, and next track directly from the tray
+* 🖼️ **Album Artwork** – View song title, artist, album, and cover in a popup
+* 🖱️ **Context Menu** – Right-click to open Spotify or exit the app
+* 🚀 **Lightweight** – Runs quietly in the background without additional dependencies
 
 ## Requirements
 
-- Windows 10/11
-- .NET 8.0 Runtime (or SDK)
-- Spotify Desktop App
+* Windows 10 or 11 (64-bit)
+* Spotify Desktop App
+
+**Note:** If using the prebuilt executable, no .NET installation is required. The app is self-contained.
 
 ## Installation
 
-### Option 1: Build from Source
+### Option 1: Use Prebuilt Executable (Recommended)
+
+1. Download `SpotifyTray.exe` from the release or build it as a single-file executable (see below).
+2. Double-click to run.
+3. Optionally, add to startup by creating a shortcut in the Windows Startup folder (`shell:startup`) or via Task Scheduler.
+
+### Option 2: Build from Source
 
 1. Clone the repository:
 ```bash
@@ -37,118 +33,70 @@ git clone <repository-url>
 cd SpotifyTray
 ```
 
-2. Build the project:
+2. Publish a self-contained single EXE:
 ```bash
-dotnet build -c Release
+dotnet publish -c Release -r win-x64 /p:PublishSingleFile=true /p:SelfContained=true
 ```
 
-3. Run the application:
-```bash
-dotnet run
+3. The resulting executable will be in:
+```
+bin\Release\net8.0-windows\win-x64\publish\SpotifyTray.exe
 ```
 
-### Option 2: Self-Contained Executable
-
-Build a standalone executable that includes the .NET runtime:
-
-```bash
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
-```
-
-The executable will be in: `bin\Release\net8.0-windows\win-x64\publish\SpotifyTray.exe`
+**Tip:** You do not need the .NET SDK on machines running the self-contained EXE.
 
 ## Usage
 
-1. **Launch the app** - The app runs in the background
-2. **Play music on Spotify** - The tray icon appears with the album cover
-3. **Left-click** the tray icon to show/hide the now playing widget
+1. **Launch the app** – it runs in the system tray.
+2. **Play music in Spotify** – the tray icon will display album art.
+3. **Left-click** the tray icon to show or hide the now playing popup.
 4. **Right-click** the tray icon for options:
-   - Open Spotify
-   - Exit
+   * Open Spotify
+   * Exit the app
 
-The widget automatically:
-- Updates when the song changes
-- Hides when you click away
-- Disappears when Spotify is closed
-
-## Run on Startup
-
-### Windows Startup Folder Method:
-
-1. Press `Win + R` and type `shell:startup`
-2. Create a shortcut to `SpotifyTray.exe` in this folder
-
-### Alternative: Task Scheduler
-
-For more control, use Windows Task Scheduler to run the app at login.
+The widget automatically updates when the song changes and hides when Spotify is closed.
 
 ## How It Works
 
-- Uses Windows' **Global System Media Transport Controls (GSMTC)** API
-- Monitors media session changes for Spotify
-- Dynamically generates tray icons from album artwork
-- WPF-based modern UI with custom styling
+* Uses Windows' **Global System Media Transport Controls (GSMTC) API**
+* Monitors Spotify's media session to update song information in real-time
+* Generates tray icons dynamically from album artwork
+* WPF-based popup UI with modern styling
 
-## Keyboard Shortcuts
+## Keyboard / Media Controls
 
-All media controls work through the Spotify integration:
-- **Previous Track** - Skip to previous song
-- **Play/Pause** - Toggle playback
-- **Next Track** - Skip to next song
+* **Previous Track** – Skip to previous song
+* **Play/Pause** – Toggle playback
+* **Next Track** – Skip to next song
+
+These controls interact directly with Spotify via Windows' media session API.
 
 ## Development
 
 ### Project Structure
-
 ```
 SpotifyTray/
-├── App.xaml.cs              # Application entry point, tray icon logic
-├── MainWindow.xaml          # Hidden main window
-├── NowPlayingWindow.xaml    # Now playing widget UI
-├── MediaController.cs       # GSMTC integration
+├── App.xaml.cs              # Entry point, tray icon logic
+├── NowPlayingWindow.xaml    # Now playing popup UI
+├── MediaController.cs       # Spotify media session integration
 └── SpotifyTray.csproj       # Project configuration
 ```
 
 ### Technologies
 
-- **WPF** - Windows Presentation Foundation for UI
-- **Windows.Media.Control** - Media session integration
-- **System.Drawing** - Image processing for tray icons
-- **.NET 8.0** - Target framework
+* **WPF** – User interface
+* **Windows.Media.Control** – Media session integration
+* **System.Drawing** – Tray icon generation
+* **.NET 8.0** – Target framework
 
 ## Contributing
 
-Contributions are welcome! Feel free to:
-- Report bugs
-- Suggest features
-- Submit pull requests
+Contributions are welcome! You can:
+
+* Report bugs
+* Suggest features
+* Submit pull requests
 
 ## License
 
-This project is open source and available under the MIT License.
-
-## Credits
-
-Created with ❤️ for Spotify users who want a clean, minimal now playing experience.
-
-## Troubleshooting
-
-**Tray icon doesn't appear:**
-- Make sure Spotify is running and playing music
-- Check that Spotify's media controls are enabled
-
-**Widget doesn't show album art:**
-- Ensure you have an active internet connection
-- Some tracks may not have album artwork
-
-**App doesn't start:**
-- Verify .NET 8.0 Runtime is installed
-- Run from command line to see error messages
-
-## Future Enhancements
-
-- [ ] Lyrics display
-- [ ] Customizable themes
-- [ ] Hotkey support
-- [ ] Multiple monitor support
-- [ ] Mini/compact mode
+MIT License – free and open source.
