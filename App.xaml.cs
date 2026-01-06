@@ -96,6 +96,7 @@ public partial class App : Application
                 {
                     _window.Hide();
                 }
+                UpdateTrayIconTooltip("", "");
             });
         }
     }
@@ -107,9 +108,12 @@ public partial class App : Application
         try
         {
             // Get fresh media info
-            await _media.GetNowPlayingAsync();
+            var (title, artist, album, cover) = await _media.GetNowPlayingAsync();
             
-            if (_media.CurrentCover == null) return;
+            // Update tooltip with current song info
+            Dispatcher.Invoke(() => UpdateTrayIconTooltip(title, artist));
+            
+            if (cover == null) return;
 
             // Create a high-quality 32x32 icon from the album cover
             using var resized = new Bitmap(32, 32);
@@ -119,7 +123,7 @@ public partial class App : Application
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
                 g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
                 g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
-                g.DrawImage(_media.CurrentCover, 0, 0, 32, 32);
+                g.DrawImage(cover, 0, 0, 32, 32);
             }
             
             var iconHandle = resized.GetHicon();
@@ -139,6 +143,29 @@ public partial class App : Application
             });
         }
         catch { /* Fallback to default icon */ }
+    }
+
+    private void UpdateTrayIconTooltip(string songTitle, string artist)
+    {
+        if (_notifyIcon == null) return;
+
+        // Handle empty states
+        if (string.IsNullOrEmpty(songTitle) || string.IsNullOrEmpty(artist))
+        {
+            _notifyIcon.Text = "Spotify Tray";
+            return;
+        }
+
+        // Windows tray icons have a 63 character limit for tooltips
+        string tooltip = $"{songTitle} - {artist}";
+        
+        // Truncate if necessary
+        if (tooltip.Length > 63)
+        {
+            tooltip = tooltip.Substring(0, 60) + "...";
+        }
+        
+        _notifyIcon.Text = tooltip;
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Auto)]
