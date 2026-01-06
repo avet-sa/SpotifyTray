@@ -25,10 +25,13 @@
 
 ### Download & Run (Recommended)
 
-1. Download the latest `SpotifyTray.exe` from [Releases](../../releases)
-2. Double-click to launch
-3. The app will appear in your system tray
-4. Start playing music in Spotify!
+1. Download the latest `SpotifyTray-Publish.zip` from [Releases](../../releases)
+2. Extract the entire folder to a location of your choice (e.g., `C:\Program Files\SpotifyTray\`)
+3. Run `SpotifyTray.exe` from the extracted folder
+4. The app will appear in your system tray
+5. Start playing music in Spotify!
+
+> **Important**: Keep all files from the publish folder together. The application requires supporting files to run properly.
 
 ### Installation Options
 
@@ -37,13 +40,13 @@
 
 **Method 1: Startup Folder**
 1. Press `Win + R` and type `shell:startup`
-2. Create a shortcut to `SpotifyTray.exe` in this folder
+2. Create a shortcut to `SpotifyTray.exe` (from your extracted publish folder) in the startup folder
 
 **Method 2: Task Scheduler** (More reliable)
 1. Open Task Scheduler
 2. Create a new task with these settings:
    - Trigger: At log on
-   - Action: Start `SpotifyTray.exe`
+   - Action: Start `SpotifyTray.exe` (full path to your extracted folder)
    - Run whether user is logged on or not
 </details>
 
@@ -60,12 +63,14 @@
 git clone https://github.com/avet-sa/SpotifyTray.git
 cd SpotifyTray
 
-# Build single-file executable
-dotnet publish -c Release -r win-x64 /p:PublishSingleFile=true /p:SelfContained=true
+# Build self-contained application
+dotnet publish -c Release -r win-x64 /p:PublishSingleFile=false /p:SelfContained=true
 
 # Output location:
-# bin\Release\net8.0-windows\win-x64\publish\SpotifyTray.exe
+# bin\Release\net8.0-windows\win-x64\publish\
 ```
+
+The entire `publish` folder contains all necessary files for distribution.
 </details>
 
 ## 📖 Usage Guide
@@ -128,7 +133,7 @@ SpotifyTray uses Windows' native media integration APIs for seamless Spotify con
 - **Framework**: .NET 8.0 / WPF
 - **Media Integration**: Windows.Media.Control (GSMTC)
 - **Graphics**: System.Drawing
-- **Distribution**: Self-contained single-file executable
+- **Distribution**: Self-contained application package
 
 ## 📁 Project Structure
 
@@ -146,6 +151,15 @@ SpotifyTray/
 ```
 
 ## 🐛 Troubleshooting
+
+<details>
+<summary><b>App won't start or crashes immediately</b></summary>
+
+- Ensure you've extracted the **entire publish folder**, not just the .exe file
+- Verify all supporting files are in the same directory as SpotifyTray.exe
+- Try running as administrator
+- Check Windows Event Viewer for error details
+</details>
 
 <details>
 <summary><b>Album art not showing in tray</b></summary>
@@ -166,7 +180,8 @@ SpotifyTray/
 <details>
 <summary><b>App doesn't start with Windows</b></summary>
 
-- Verify the shortcut in the Startup folder is valid
+- Verify the shortcut in the Startup folder points to the correct location
+- Ensure the entire publish folder hasn't been moved or deleted
 - Check Task Scheduler task configuration
 - Run SpotifyTray as administrator once to ensure proper registration
 </details>
@@ -209,6 +224,9 @@ Potential future enhancements:
 - [ ] Lyrics integration
 
 ## ❓ FAQ
+
+**Q: Why do I need to download the entire folder instead of just the .exe?**  
+A: The application is self-contained and includes all necessary .NET runtime files and dependencies. These supporting files must be kept together with the executable.
 
 **Q: Does this work with Spotify Web Player?**  
 A: No, it requires the desktop application due to Windows media API limitations.
