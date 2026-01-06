@@ -8,6 +8,11 @@ namespace SpotifyTray;
 
 public partial class NowPlayingWindow : Window
 {
+    // Constants
+    private const int WindowOffsetX = 10;
+    private const int WindowOffsetY = 60;
+    private const string PositionSettingsKey = "WindowPosition";
+    
     private readonly MediaController _media;
 
     public NowPlayingWindow(MediaController media)
@@ -16,12 +21,84 @@ public partial class NowPlayingWindow : Window
         _media = media;
         _media.MediaChanged += UpdateDisplay;
         
-        // Position near system tray (higher up)
-        var workArea = SystemParameters.WorkArea;
-        Left = workArea.Right - Width - 10;
-        Top = workArea.Bottom - Height - 60; // Moved 50 pixels higher
+        // Add keyboard shortcuts
+        KeyDown += OnKeyDown;
+        
+        // Load saved position or use default
+        LoadWindowPosition();
         
         UpdateDisplay();
+    }
+
+    private void LoadWindowPosition()
+    {
+        try
+        {
+            var savedPosition = Properties.Settings.Default.WindowPosition;
+            if (!string.IsNullOrEmpty(savedPosition))
+            {
+                var parts = savedPosition.Split(',');
+                if (parts.Length == 2 && 
+                    double.TryParse(parts[0], out var left) && 
+                    double.TryParse(parts[1], out var top))
+                {
+                    // Ensure window is visible on screen
+                    var workArea = SystemParameters.WorkArea;
+                    if (left >= workArea.Left && left + Width <= workArea.Right &&
+                        top >= workArea.Top && top + Height <= workArea.Bottom)
+                    {
+                        Left = left;
+                        Top = top;
+                        return;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"LoadWindowPosition error: {ex.Message}");
+        }
+
+        // Default position near system tray
+        var defaultWorkArea = SystemParameters.WorkArea;
+        Left = defaultWorkArea.Right - Width - WindowOffsetX;
+        Top = defaultWorkArea.Bottom - Height - WindowOffsetY;
+    }
+
+    private void SaveWindowPosition()
+    {
+        try
+        {
+            Properties.Settings.Default.WindowPosition = $"{Left},{Top}";
+            Properties.Settings.Default.Save();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"SaveWindowPosition error: {ex.Message}");
+        }
+    }
+
+    private void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case System.Windows.Input.Key.Space:
+                PlayPause(null, null);
+                e.Handled = true;
+                break;
+            case System.Windows.Input.Key.Right:
+                Next(null, null);
+                e.Handled = true;
+                break;
+            case System.Windows.Input.Key.Left:
+                Prev(null, null);
+                e.Handled = true;
+                break;
+            case System.Windows.Input.Key.Escape:
+                Hide();
+                e.Handled = true;
+                break;
+        }
     }
 
     private async void UpdateDisplay()
@@ -62,7 +139,8 @@ public partial class NowPlayingWindow : Window
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Cover error: {ex.Message}");
+                        System.Diagnostics.Debug.WriteLine($"Cover conversion error: {ex.Message}");
+                        Cover.Source = null;
                     }
                 }
                 else
@@ -77,27 +155,41 @@ public partial class NowPlayingWindow : Window
         }
     }
 
-    private async void PlayPause(object _, RoutedEventArgs __)
+    private async void PlayPause(object? _, RoutedEventArgs? __)
     {
         var task = _media.PlayPause();
         if (task != null) await task;
     }
 
-    private async void Next(object _, RoutedEventArgs __)
+    private async void Next(object? _, RoutedEventArgs? __)
     {
         var task = _media.Next();
         if (task != null) await task;
     }
 
-    private async void Prev(object _, RoutedEventArgs __)
+    private async void Prev(object? _, RoutedEventArgs? __)
     {
         var task = _media.Previous();
         if (task != null) await task;
+    }
+
+    protected override void OnLocationChanged(EventArgs e)
+    {
+        base.OnLocationChanged(e);
+        SaveWindowPosition();
     }
 
     protected override void OnDeactivated(EventArgs e)
     {
         base.OnDeactivated(e);
         Hide();
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        // Unsubscribe from media changed event to prevent memory leak
+        _media.MediaChanged -= UpdateDisplay;
+        KeyDown -= OnKeyDown;
+        base.OnClosed(e);
     }
 }

@@ -29,7 +29,11 @@ public class MediaController
             var sourceAppId = _session.SourceAppUserModelId;
             return sourceAppId.Contains("Spotify", StringComparison.OrdinalIgnoreCase);
         }
-        catch { return false; }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"IsSpotifyActive error: {ex.Message}");
+            return false;
+        }
     }
 
     public async Task InitializeAsync()

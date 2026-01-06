@@ -8,24 +8,58 @@ namespace SpotifyTray;
 
 public partial class App : Application
 {
+    // Constants
+    private const int TrayIconSize = 32;
+    private const int TooltipMaxLength = 63;
+    private const int TooltipTruncateLength = 60;
+    private const int MediaChangeDebounceMs = 300;
+    
     private NotifyIcon? _notifyIcon;
     private MediaController? _media;
     private NowPlayingWindow? _window;
+    private System.Threading.Timer? _debounceTimer;
+    private readonly object _debounceLock = new object();
+    private CancellationTokenSource? _cancellationTokenSource;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
+        // Enforce single instance
+        var appName = "SpotifyTray_SingleInstance";
+        bool createdNew;
+        var mutex = new System.Threading.Mutex(true, appName, out createdNew);
+        
+        if (!createdNew)
+        {
+            System.Windows.MessageBox.Show("SpotifyTray is already running.", "Already Running", 
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            Shutdown();
+            return;
+        }
+
+        _cancellationTokenSource = new CancellationTokenSource();
+
         _media = new MediaController();
         _media.MediaChanged += OnMediaChanged;
         Task.Run(async () =>
         {
-            await _media.InitializeAsync();
-            // Load initial media info to get the cover
-            await _media.GetNowPlayingAsync();
-            // Update tray icon on UI thread
-            Dispatcher.Invoke(() => OnMediaChanged());
-        });
+            try
+            {
+                await _media.InitializeAsync();
+                // Load initial media info to get the cover
+                await _media.GetNowPlayingAsync();
+                // Update tray icon on UI thread
+                if (!_cancellationTokenSource.Token.IsCancellationRequested)
+                {
+                    Dispatcher.Invoke(() => OnMediaChanged());
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // App is shutting down
+            }
+        }, _cancellationTokenSource.Token);
 
         var contextMenu = new ContextMenuStrip();
         contextMenu.Renderer = new ModernContextMenuRenderer();
@@ -79,25 +113,37 @@ public partial class App : Application
     {
         if (_media == null || _notifyIcon == null) return;
 
-        // Show tray icon only when Spotify is active
-        var isSpotifyActive = _media.IsSpotifyActive();
-        _notifyIcon.Visible = isSpotifyActive;
-
-        if (isSpotifyActive)
+        // Debounce rapid media change events
+        lock (_debounceLock)
         {
-            UpdateTrayIcon();
-        }
-        else
-        {
-            // Hide window if Spotify stops
-            Dispatcher.Invoke(() =>
+            _debounceTimer?.Dispose();
+            _debounceTimer = new System.Threading.Timer(_ =>
             {
-                if (_window != null && _window.IsVisible)
+                // Show tray icon only when Spotify is active
+                var isSpotifyActive = _media.IsSpotifyActive();
+                
+                Dispatcher.Invoke(() =>
                 {
-                    _window.Hide();
+                    _notifyIcon.Visible = isSpotifyActive;
+                });
+
+                if (isSpotifyActive)
+                {
+                    UpdateTrayIcon();
                 }
-                UpdateTrayIconTooltip("", "");
-            });
+                else
+                {
+                    // Hide window if Spotify stops
+                    Dispatcher.Invoke(() =>
+                    {
+                        if (_window != null && _window.IsVisible)
+                        {
+                            _window.Hide();
+                        }
+                        UpdateTrayIconTooltip("", "");
+                    });
+                }
+            }, null, MediaChangeDebounceMs, Timeout.Infinite);
         }
     }
 
@@ -115,15 +161,15 @@ public partial class App : Application
             
             if (cover == null) return;
 
-            // Create a high-quality 32x32 icon from the album cover
-            using var resized = new Bitmap(32, 32);
+            // Create a high-quality icon from the album cover
+            using var resized = new Bitmap(TrayIconSize, TrayIconSize);
             using (var g = Graphics.FromImage(resized))
             {
                 g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
                 g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
                 g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
                 g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
-                g.DrawImage(cover, 0, 0, 32, 32);
+                g.DrawImage(cover, 0, 0, TrayIconSize, TrayIconSize);
             }
             
             var iconHandle = resized.GetHicon();
@@ -141,8 +187,15 @@ public partial class App : Application
                     oldIcon.Dispose();
                 }
             });
+            
+            // Clean up the icon handle
+            DestroyIcon(iconHandle);
         }
-        catch { /* Fallback to default icon */ }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"UpdateTrayIcon error: {ex.Message}");
+            // Fallback to default icon on error
+        }
     }
 
     private void UpdateTrayIconTooltip(string songTitle, string artist)
@@ -156,13 +209,13 @@ public partial class App : Application
             return;
         }
 
-        // Windows tray icons have a 63 character limit for tooltips
+        // Windows tray icons have a maximum tooltip length
         string tooltip = $"{songTitle} - {artist}";
         
         // Truncate if necessary
-        if (tooltip.Length > 63)
+        if (tooltip.Length > TooltipMaxLength)
         {
-            tooltip = tooltip.Substring(0, 60) + "...";
+            tooltip = tooltip.Substring(0, TooltipTruncateLength) + "...";
         }
         
         _notifyIcon.Text = tooltip;
@@ -181,7 +234,10 @@ public partial class App : Application
                 UseShellExecute = true
             });
         }
-        catch { /* Spotify not installed or URI scheme not registered */ }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"OpenSpotify error: {ex.Message}");
+        }
     }
 
     private void ExitApp(object? sender, EventArgs e)
@@ -191,6 +247,9 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _cancellationTokenSource?.Cancel();
+        _debounceTimer?.Dispose();
+        _cancellationTokenSource?.Dispose();
         _notifyIcon?.Dispose();
         base.OnExit(e);
     }
