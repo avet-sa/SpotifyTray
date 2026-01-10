@@ -6,6 +6,7 @@ using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using System.IO;
 using System.Drawing;
+using System.Windows.Media.Animation;
 using DrawingImage = System.Drawing.Image;
 using WpfPoint = System.Windows.Point;
 using WpfColor = System.Windows.Media.Color;
@@ -18,11 +19,14 @@ public partial class NowPlayingWindow : Window
     private const int WindowOffsetX = 10;
     private const int WindowOffsetY = 60;
     private const string PositionSettingsKey = "WindowPosition";
+    private const int AnimationDurationMs = 100;
     
     private readonly MediaController _media;
     private Border? _backgroundBorder; // Reference to the main background border
     private System.Windows.Controls.Image? _coverImage; // Reference to the main cover image
     private System.Windows.Controls.Image? _coverBlurred; // Reference to the blurred cover image
+    private double _targetLeft; // Store the target position for animation
+    private double _targetTop;
 
     public NowPlayingWindow(MediaController media)
     {
@@ -35,6 +39,10 @@ public partial class NowPlayingWindow : Window
         
         // Load saved position or use default
         LoadWindowPosition();
+        
+        // Set initial window position to target (will be animated when shown)
+        Left = _targetLeft;
+        Top = _targetTop;
         
         // Store reference to background border
         _backgroundBorder = this.FindName("BackgroundBorder") as Border;
@@ -63,8 +71,8 @@ public partial class NowPlayingWindow : Window
                     if (left >= workArea.Left && left + Width <= workArea.Right &&
                         top >= workArea.Top && top + Height <= workArea.Bottom)
                     {
-                        Left = left;
-                        Top = top;
+                        _targetLeft = left;
+                        _targetTop = top;
                         return;
                     }
                 }
@@ -77,21 +85,59 @@ public partial class NowPlayingWindow : Window
 
         // Default position near system tray
         var defaultWorkArea = SystemParameters.WorkArea;
-        Left = defaultWorkArea.Right - Width - WindowOffsetX;
-        Top = defaultWorkArea.Bottom - Height - WindowOffsetY;
+        _targetLeft = defaultWorkArea.Right - Width - WindowOffsetX;
+        _targetTop = defaultWorkArea.Bottom - Height - WindowOffsetY;
     }
 
     private void SaveWindowPosition()
     {
         try
         {
-            Properties.Settings.Default.WindowPosition = $"{Left},{Top}";
+            Properties.Settings.Default.WindowPosition = $"{_targetLeft},{_targetTop}";
             Properties.Settings.Default.Save();
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"SaveWindowPosition error: {ex.Message}");
         }
+    }
+    
+    public new void Show()
+    {
+        if (IsVisible) return; // Already visible
+        
+        // Make sure we're visible before animating
+        Opacity = 1;
+        base.Show();
+        
+        // Animate slide in from bottom
+        var workArea = SystemParameters.WorkArea;
+        var slideAnimation = new DoubleAnimation
+        {
+            From = workArea.Bottom,
+            To = _targetTop,
+            Duration = TimeSpan.FromMilliseconds(AnimationDurationMs),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        
+        BeginAnimation(Window.TopProperty, slideAnimation);
+    }
+    
+    public new void Hide()
+    {
+        // Animate slide out to the bottom
+        var workArea = SystemParameters.WorkArea;
+        var slideAnimation = new DoubleAnimation
+        {
+            From = Top,
+            To = workArea.Bottom,
+            Duration = TimeSpan.FromMilliseconds(AnimationDurationMs),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+        };
+        
+        slideAnimation.Completed += (s, e) => base.Hide();
+        
+        BeginAnimation(Window.TopProperty, slideAnimation);
     }
 
     private void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -223,6 +269,9 @@ public partial class NowPlayingWindow : Window
     protected override void OnLocationChanged(EventArgs e)
     {
         base.OnLocationChanged(e);
+        // Update target position when window is manually moved
+        _targetLeft = Left;
+        _targetTop = Top;
         SaveWindowPosition();
     }
 
