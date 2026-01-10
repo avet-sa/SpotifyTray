@@ -21,7 +21,8 @@ public partial class NowPlayingWindow : Window
     
     private readonly MediaController _media;
     private Border? _backgroundBorder; // Reference to the main background border
-    private Border? _coverBorder; // Reference to the cover border for applying effects
+    private System.Windows.Controls.Image? _coverImage; // Reference to the main cover image
+    private System.Windows.Controls.Image? _coverBlurred; // Reference to the blurred cover image
 
     public NowPlayingWindow(MediaController media)
     {
@@ -38,12 +39,9 @@ public partial class NowPlayingWindow : Window
         // Store reference to background border
         _backgroundBorder = this.FindName("BackgroundBorder") as Border;
         
-        // Find the cover border (parent of the Cover image)
-        var cover = this.FindName("Cover") as System.Windows.Controls.Image;
-        if (cover?.Parent is Border coverBorder)
-        {
-            _coverBorder = coverBorder;
-        }
+        // Find the cover images
+        _coverImage = this.FindName("Cover") as System.Windows.Controls.Image;
+        _coverBlurred = this.FindName("CoverBlurred") as System.Windows.Controls.Image;
         
         UpdateDisplay();
     }
@@ -153,15 +151,29 @@ public partial class NowPlayingWindow : Window
                         img.StreamSource = ms;
                         img.EndInit();
 
-                        Cover.Source = img;
-
-                        // Calculate median color and apply drop shadow and gradient
-                        ApplyMedianColorEffects(cover);
+                        // Set both the sharp and blurred cover images
+                        if (_coverImage != null)
+                            _coverImage.Source = img;
+                        
+                        if (_coverBlurred != null)
+                        {
+                            // Create a fresh BitmapImage for the blurred version
+                            ms.Position = 0;
+                            var blurredImg = new BitmapImage();
+                            blurredImg.BeginInit();
+                            blurredImg.CacheOption = BitmapCacheOption.OnLoad;
+                            blurredImg.StreamSource = ms;
+                            blurredImg.EndInit();
+                            _coverBlurred.Source = blurredImg;
+                        }
                     }
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"Cover conversion error: {ex.Message}");
-                        Cover.Source = null;
+                        if (_coverImage != null)
+                            _coverImage.Source = null;
+                        if (_coverBlurred != null)
+                            _coverBlurred.Source = null;
                         ResetBackgroundGradient();
                     }
                 }
@@ -178,58 +190,16 @@ public partial class NowPlayingWindow : Window
         }
     }
 
-    private void ApplyMedianColorEffects(DrawingImage cover)
-    {
-        if (_coverBorder == null)
-        {
-            System.Diagnostics.Debug.WriteLine("Cover border not found");
-            return;
-        }
-
-        try
-        {
-            // Get the median color from the cover
-            var medianColor = _media.GetMedianColor(cover);
-            System.Diagnostics.Debug.WriteLine($"Median color: R={medianColor.R}, G={medianColor.G}, B={medianColor.B}");
-            
-            // Convert to WPF Color
-            var wpfMedianColor = WpfColor.FromArgb(
-                255,
-                medianColor.R,
-                medianColor.G,
-                medianColor.B
-            );
-            
-            // Apply drop shadow to the cover border with the median color
-            var dropShadow = new DropShadowEffect
-            {
-                Color = wpfMedianColor,
-                BlurRadius = 13,
-                Opacity = 0.6,
-                ShadowDepth = 0,
-                Direction = 0,
-                RenderingBias = RenderingBias.Performance,
-
-            };
-            
-            System.Diagnostics.Debug.WriteLine("Applying drop shadow effect");
-            _coverBorder.Effect = dropShadow;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"ApplyMedianColorEffects error: {ex.Message}");
-        }
-    }
-
     private void ResetBackgroundGradient()
     {
         if (_backgroundBorder == null) return;
         _backgroundBorder.Background = new SolidColorBrush(WpfColor.FromRgb(32, 32, 32));
         
-        if (_coverBorder != null)
-        {
-            _coverBorder.Effect = null;
-        }
+        if (_coverImage != null)
+            _coverImage.Source = null;
+        
+        if (_coverBlurred != null)
+            _coverBlurred.Source = null;
     }
 
     private async void PlayPause(object? _, RoutedEventArgs? __)

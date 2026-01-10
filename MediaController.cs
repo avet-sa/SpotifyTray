@@ -139,4 +139,76 @@ public class MediaController
             return Color.FromArgb(32, 32, 32);
         }
     }
+
+    /// <summary>
+    /// Extracts dominant colors from the edges of the image.
+    /// Returns colors from top, right, bottom, and left edges.
+    /// </summary>
+    public (Color top, Color right, Color bottom, Color left) GetEdgeColors(Image? image)
+    {
+        var defaultColor = Color.FromArgb(32, 32, 32);
+        
+        if (image == null)
+            return (defaultColor, defaultColor, defaultColor, defaultColor);
+
+        try
+        {
+            var bitmap = image as Bitmap ?? new Bitmap(image);
+            int width = bitmap.Width;
+            int height = bitmap.Height;
+
+            // Define edge sampling regions (10% of each edge)
+            int edgeThickness = Math.Max(1, Math.Min(width, height) / 10);
+
+            // Helper function to get median color from a region
+            Color GetRegionColor(int startX, int startY, int endX, int endY)
+            {
+                var reds = new List<int>();
+                var greens = new List<int>();
+                var blues = new List<int>();
+
+                int step = Math.Max(1, (endX - startX) / 10); // Sample ~10 pixels per edge
+                
+                for (int y = startY; y < endY; y += step)
+                {
+                    for (int x = startX; x < endX; x += step)
+                    {
+                        if (x >= 0 && x < width && y >= 0 && y < height)
+                        {
+                            var pixel = bitmap.GetPixel(x, y);
+                            reds.Add(pixel.R);
+                            greens.Add(pixel.G);
+                            blues.Add(pixel.B);
+                        }
+                    }
+                }
+
+                if (reds.Count == 0)
+                    return defaultColor;
+
+                reds.Sort();
+                greens.Sort();
+                blues.Sort();
+
+                return Color.FromArgb(
+                    reds[reds.Count / 2],
+                    greens[greens.Count / 2],
+                    blues[blues.Count / 2]
+                );
+            }
+
+            // Extract colors from each edge
+            var topColor = GetRegionColor(0, 0, width, edgeThickness);
+            var bottomColor = GetRegionColor(0, height - edgeThickness, width, height);
+            var leftColor = GetRegionColor(0, 0, edgeThickness, height);
+            var rightColor = GetRegionColor(width - edgeThickness, 0, width, height);
+
+            return (topColor, rightColor, bottomColor, leftColor);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"GetEdgeColors error: {ex.Message}");
+            return (defaultColor, defaultColor, defaultColor, defaultColor);
+        }
+    }
 }
