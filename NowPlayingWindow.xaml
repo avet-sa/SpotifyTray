@@ -13,7 +13,7 @@
 
     <Window.Resources>
         <Style x:Key="MediaButton"
-                TargetType="Button">
+               TargetType="Button">
             <Setter Property="Background"
                     Value="Transparent"/>
             <Setter Property="Foreground"
@@ -34,13 +34,13 @@
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver"
-                                    Value="True">
+                                     Value="True">
                                 <Setter TargetName="bg"
                                         Property="Background"
                                         Value="#3a3a3a"/>
                             </Trigger>
                             <Trigger Property="IsPressed"
-                                    Value="True">
+                                     Value="True">
                                 <Setter TargetName="bg"
                                         Property="Background"
                                         Value="#4a4a4a"/>
@@ -60,9 +60,9 @@
             Padding="16">
         <Border.Effect>
             <DropShadowEffect Color="Black"
-                    Opacity="0.6"
-                    BlurRadius="20"
-                    ShadowDepth="4"/>
+                              Opacity="0.6"
+                              BlurRadius="20"
+                              ShadowDepth="4"/>
         </Border.Effect>
 
         <Grid>
@@ -74,8 +74,7 @@
                     Width="110"
                     Height="110"
                     CornerRadius="8"
-                    Background="#2a2a2a"
-            >
+                    Background="#2a2a2a">
                 <Grid>
                     <!-- Blurred copy of cover underneath for glow effect -->
                     <Image x:Name="CoverBlurred"
@@ -88,7 +87,7 @@
                     </Image>
                     <!-- The actual sharp cover image on top -->
                     <Image x:Name="Cover"
-                            Stretch="UniformToFill"/>
+                           Stretch="UniformToFill"/>
                 </Grid>
             </Border>
 
@@ -123,16 +122,16 @@
                             Margin="4,0"
                             Style="{StaticResource MediaButton}">
                         <Viewbox Width="26"
-                                Height="26">
+                                 Height="26">
                             <Canvas Width="24"
                                     Height="24">
                                 <Rectangle Canvas.Left="6"
-                                        Canvas.Top="6"
-                                        Width="2"
-                                        Height="12"
-                                        Fill="White"/>
+                                           Canvas.Top="6"
+                                           Width="2"
+                                           Height="12"
+                                           Fill="White"/>
                                 <Path Data="M10,12 L18,6 L18,18 Z"
-                                        Fill="White"/>
+                                      Fill="White"/>
                             </Canvas>
                         </Viewbox>
                     </Button>
@@ -143,7 +142,7 @@
                             Margin="4,0"
                             Style="{StaticResource MediaButton}">
                         <Viewbox Width="28"
-                                Height="28">
+                                 Height="28">
                             <Canvas Width="24"
                                     Height="24">
                                 <Path x:Name="PlayPauseIcon"
@@ -158,16 +157,16 @@
                             Margin="4,0"
                             Style="{StaticResource MediaButton}">
                         <Viewbox Width="26"
-                                Height="26">
+                                 Height="26">
                             <Canvas Width="24"
                                     Height="24">
                                 <Path Data="M6,6 L6,18 L14,12 Z"
-                                        Fill="White"/>
+                                      Fill="White"/>
                                 <Rectangle Canvas.Left="16"
-                                        Canvas.Top="6"
-                                        Width="2"
-                                        Height="12"
-                                        Fill="White"/>
+                                           Canvas.Top="6"
+                                           Width="2"
+                                           Height="12"
+                                           Fill="White"/>
                             </Canvas>
                         </Viewbox>
                     </Button>

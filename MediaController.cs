@@ -6,12 +6,18 @@ using Windows.Storage.Streams;
 using System.Drawing;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 
 public class MediaController
 {
     private GlobalSystemMediaTransportControlsSessionManager? _manager;
     private GlobalSystemMediaTransportControlsSession? _session;
     private Image? _currentCover;
+    
+    // Cache for album artwork: key is track identifier, value is cached image
+    private readonly Dictionary<string, Image> _artworkCache = new();
+    private const int MaxCacheSize = 50; // Limit cache to 50 images
 
     public event Action? MediaChanged;
     public Image? CurrentCover => _currentCover;
@@ -65,7 +71,38 @@ public class MediaController
             return ("", "", "", null);
 
         var media = await _session.TryGetMediaPropertiesAsync();
-        _currentCover = await GetCoverAsync(media.Thumbnail);
+        
+        // Create a cache key from track metadata
+        var cacheKey = GenerateCacheKey(media.Title, media.Artist, media.AlbumTitle);
+        
+        // Check if we have this artwork cached
+        if (_artworkCache.TryGetValue(cacheKey, out var cachedImage))
+        {
+            System.Diagnostics.Debug.WriteLine($"Using cached artwork for: {media.Title}");
+            _currentCover = new Bitmap(cachedImage); // Clone to avoid disposal issues
+        }
+        else
+        {
+            // Not cached, fetch and cache it
+            _currentCover = await GetCoverAsync(media.Thumbnail);
+            
+            if (_currentCover != null)
+            {
+                // Add to cache (clone for cache storage)
+                _artworkCache[cacheKey] = new Bitmap(_currentCover);
+                
+                // Enforce cache size limit
+                if (_artworkCache.Count > MaxCacheSize)
+                {
+                    var oldestKey = _artworkCache.Keys.First();
+                    _artworkCache[oldestKey]?.Dispose();
+                    _artworkCache.Remove(oldestKey);
+                    System.Diagnostics.Debug.WriteLine($"Cache limit reached, removed oldest entry");
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"Cached new artwork for: {media.Title}");
+            }
+        }
 
         return (
             media.Title,
@@ -73,6 +110,15 @@ public class MediaController
             media.AlbumTitle,
             _currentCover
         );
+    }
+    
+    private string GenerateCacheKey(string title, string artist, string album)
+    {
+        // Create a unique key based on track metadata
+        var keyString = $"{title}|{artist}|{album}".ToLowerInvariant();
+        using var md5 = MD5.Create();
+        var hash = md5.ComputeHash(Encoding.UTF8.GetBytes(keyString));
+        return Convert.ToHexString(hash);
     }
 
     private async Task<Image?> GetCoverAsync(IRandomAccessStreamReference? thumbnail)
