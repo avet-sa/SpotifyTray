@@ -1,8 +1,14 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using System.IO;
+using System.Drawing;
+using DrawingImage = System.Drawing.Image;
+using WpfPoint = System.Windows.Point;
+using WpfColor = System.Windows.Media.Color;
 
 namespace SpotifyTray;
 
@@ -14,6 +20,8 @@ public partial class NowPlayingWindow : Window
     private const string PositionSettingsKey = "WindowPosition";
     
     private readonly MediaController _media;
+    private Border? _backgroundBorder; // Reference to the main background border
+    private Border? _coverBorder; // Reference to the cover border for applying effects
 
     public NowPlayingWindow(MediaController media)
     {
@@ -26,6 +34,16 @@ public partial class NowPlayingWindow : Window
         
         // Load saved position or use default
         LoadWindowPosition();
+        
+        // Store reference to background border
+        _backgroundBorder = this.FindName("BackgroundBorder") as Border;
+        
+        // Find the cover border (parent of the Cover image)
+        var cover = this.FindName("Cover") as System.Windows.Controls.Image;
+        if (cover?.Parent is Border coverBorder)
+        {
+            _coverBorder = coverBorder;
+        }
         
         UpdateDisplay();
     }
@@ -136,22 +154,81 @@ public partial class NowPlayingWindow : Window
                         img.EndInit();
 
                         Cover.Source = img;
+
+                        // Calculate median color and apply drop shadow and gradient
+                        ApplyMedianColorEffects(cover);
                     }
                     catch (Exception ex)
                     {
                         System.Diagnostics.Debug.WriteLine($"Cover conversion error: {ex.Message}");
                         Cover.Source = null;
+                        ResetBackgroundGradient();
                     }
                 }
                 else
                 {
                     System.Diagnostics.Debug.WriteLine("Cover is null");
+                    ResetBackgroundGradient();
                 }
             });
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"UpdateDisplay error: {ex.Message}");
+        }
+    }
+
+    private void ApplyMedianColorEffects(DrawingImage cover)
+    {
+        if (_coverBorder == null)
+        {
+            System.Diagnostics.Debug.WriteLine("Cover border not found");
+            return;
+        }
+
+        try
+        {
+            // Get the median color from the cover
+            var medianColor = _media.GetMedianColor(cover);
+            System.Diagnostics.Debug.WriteLine($"Median color: R={medianColor.R}, G={medianColor.G}, B={medianColor.B}");
+            
+            // Convert to WPF Color
+            var wpfMedianColor = WpfColor.FromArgb(
+                255,
+                medianColor.R,
+                medianColor.G,
+                medianColor.B
+            );
+            
+            // Apply drop shadow to the cover border with the median color
+            var dropShadow = new DropShadowEffect
+            {
+                Color = wpfMedianColor,
+                BlurRadius = 13,
+                Opacity = 0.6,
+                ShadowDepth = 0,
+                Direction = 0,
+                RenderingBias = RenderingBias.Performance,
+
+            };
+            
+            System.Diagnostics.Debug.WriteLine("Applying drop shadow effect");
+            _coverBorder.Effect = dropShadow;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"ApplyMedianColorEffects error: {ex.Message}");
+        }
+    }
+
+    private void ResetBackgroundGradient()
+    {
+        if (_backgroundBorder == null) return;
+        _backgroundBorder.Background = new SolidColorBrush(WpfColor.FromRgb(32, 32, 32));
+        
+        if (_coverBorder != null)
+        {
+            _coverBorder.Effect = null;
         }
     }
 

@@ -41,7 +41,8 @@
         </Style>
     </Window.Resources>
 
-    <Border Background="#202020" 
+    <Border x:Name="BackgroundBorder"
+            Background="#202020" 
             CornerRadius="10" 
             BorderBrush="#3a3a3a" 
             BorderThickness="1"
@@ -61,9 +62,6 @@
                     Height="110" 
                     CornerRadius="8"
                     Background="#2a2a2a">
-                <Border.Clip>
-                    <RectangleGeometry Rect="0,0,110,110" RadiusX="8" RadiusY="8"/>
-                </Border.Clip>
                 <Image x:Name="Cover" Stretch="UniformToFill"/>
             </Border>
 
