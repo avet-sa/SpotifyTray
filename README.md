@@ -20,7 +20,7 @@
 
 ## Screenshots
 
-<img width="425" height="188" alt="image" src="https://github.com/user-attachments/assets/0180c167-aae7-4edd-a500-fe0d8e5bd4c9" />
+<img width="425" height="188" alt="image" src="https://github.com/user-attachments/assets/458ba8e5-c4c5-4663-bef0-1c570a556654" />
 
 
 ## Quick Start
