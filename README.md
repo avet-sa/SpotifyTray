@@ -1,4 +1,4 @@
-# 🎵 SpotifyTray
+# SpotifyTray
 
 > A minimal, elegant system tray application for Windows that displays Spotify's now-playing information with album art and integrated media controls.
 
@@ -6,32 +6,41 @@
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-## ✨ Features
+## Features
 
-- **🎨 Dynamic Album Art** - Tray icon automatically updates with the current album cover
-- **🎮 Media Controls** - Play/pause, skip tracks, and control playback directly from the tray
-- **📊 Rich Now Playing Display** - Elegant popup showing track title, artist, album, and artwork
-- **⚡ Lightweight & Fast** - Minimal resource usage, runs silently in the background
-- **🔄 Real-time Updates** - Automatically syncs with Spotify's playback state
-- **🖱️ Intuitive Controls** - Left-click to toggle popup, right-click for quick actions
-- **📦 Self-Contained** - No dependencies or .NET runtime installation required
+- **Dynamic Album Art** - Tray icon automatically updates with the current album cover
+- **Media Controls** - Play/pause, skip tracks, and control playback directly from the tray
+- **Rich Now Playing Display** - Elegant popup showing track title, artist, album, and artwork
+- **Lightweight & Fast** - Minimal resource usage, runs silently in the background
+- **Real-time Updates** - Automatically syncs with Spotify's playback state
+- **Intuitive Controls** - Left-click to toggle popup, right-click for quick actions
+- **Self-Contained** - No dependencies or .NET runtime installation required
 
-## 📸 Screenshots
+## Screenshots
 
 <img width="425" height="188" alt="image" src="https://github.com/user-attachments/assets/0180c167-aae7-4edd-a500-fe0d8e5bd4c9" />
 
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Download & Run (Recommended)
 
-1. Download the latest `SpotifyTray-Publish.zip` from [Releases](../../releases)
-2. Extract the entire folder to a location of your choice (e.g., `C:\Program Files\SpotifyTray\`)
+1. Download the latest release ZIP for your architecture from [Releases](../../releases):
+  - `SpotifyTray-win-x64.zip` (64-bit)
+  - `SpotifyTray-win-x86.zip` (32-bit)
+2. Extract the entire ZIP to a location of your choice (e.g., `C:\Program Files\SpotifyTray\`)
 3. Run `SpotifyTray.exe` from the extracted folder
 4. The app will appear in your system tray
-5. Start playing music in Spotify!
+5. Start playing music in Spotify
 
-> **Important**: Keep all files from the publish folder together. The application requires supporting files to run properly.
+> **Important**: Keep all files from the publish folder together. The application requires supporting files alongside the executable to run properly.
+
+### Release Assets
+
+Each release includes ZIP archives that contain the full publish output. Download and extract the one that matches your system:
+
+- `SpotifyTray-win-x64.zip` – recommended for most modern systems
+- `SpotifyTray-win-x86.zip` – for legacy 32-bit systems
 
 ### Installation Options
 
@@ -63,17 +72,20 @@
 git clone https://github.com/avet-sa/SpotifyTray.git
 cd SpotifyTray
 
-# Build self-contained application
-dotnet publish -c Release -r win-x64 /p:PublishSingleFile=false /p:SelfContained=true
+# Build self-contained application (x64)
+dotnet publish -c Release -r win-x64 /p:PublishSingleFile=true --self-contained true
+
+# Optional: build x86
+dotnet publish -c Release -r win-x86 /p:PublishSingleFile=true --self-contained true
 
 # Output location:
-# bin\Release\net8.0-windows\win-x64\publish\
+# bin\Release\net8.0-windows10.0.19041.0\win-x64\publish\
 ```
 
-The entire `publish` folder contains all necessary files for distribution.
+The entire `publish` folder contains all necessary files for distribution. Distribute the full folder, not just the `.exe`.
 </details>
 
-## 📖 Usage Guide
+## Usage Guide
 
 ### Basic Controls
 
@@ -96,15 +108,15 @@ The entire `publish` folder contains all necessary files for distribution.
 - **Auto-update**: Album art and track info update in real-time
 - **Spotify detection**: Works automatically when Spotify is running
 
-## 🔧 Requirements
+## Requirements
 
 - **OS**: Windows 10 (1809+) or Windows 11
 - **Spotify**: Desktop application (not web player)
-- **Architecture**: 64-bit Windows
+- **Architecture**: 64-bit or 32-bit Windows (choose matching release ZIP)
 
 > **Note**: The Microsoft Store version of Spotify may have limited media control support. The desktop version from spotify.com is recommended.
 
-## 🏗️ Architecture
+## Architecture
 
 SpotifyTray uses Windows' native media integration APIs for seamless Spotify control:
 
@@ -135,7 +147,7 @@ SpotifyTray uses Windows' native media integration APIs for seamless Spotify con
 - **Graphics**: System.Drawing
 - **Distribution**: Self-contained application package
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 SpotifyTray/
@@ -150,7 +162,7 @@ SpotifyTray/
 └── README.md               # Documentation
 ```
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 <details>
 <summary><b>App won't start or crashes immediately</b></summary>
@@ -194,7 +206,7 @@ This shouldn't happen under normal circumstances. If you experience this:
 - Report the issue with details about your system
 </details>
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Here's how you can help:
 
@@ -211,7 +223,7 @@ dotnet restore
 dotnet build
 ```
 
-## 📋 Roadmap
+## Roadmap
 
 Potential future enhancements:
 
@@ -223,7 +235,7 @@ Potential future enhancements:
 - [ ] Mini-player mode
 - [ ] Lyrics integration
 
-## ❓ FAQ
+## FAQ
 
 **Q: Why do I need to download the entire folder instead of just the .exe?**  
 A: The application is self-contained and includes all necessary .NET runtime files and dependencies. These supporting files must be kept together with the executable.
@@ -240,16 +252,16 @@ A: Yes, it works with whichever Spotify instance is currently playing.
 **Q: Does this affect Spotify's performance?**  
 A: No, it uses Windows' media APIs without directly interfacing with Spotify.
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Built with Windows' Global System Media Transport Controls API
 - Inspired by the need for a lightweight Spotify companion
 
-## 📞 Support
+## Support
 
 - **Issues**: [GitHub Issues](../../issues)
 - **Discussions**: [GitHub Discussions](../../discussions)
@@ -257,7 +269,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 <p align="center">
-  Made with ❤️ for Spotify lovers
+  Made with love for Spotify lovers
   <br>
   <sub>Not affiliated with Spotify AB</sub>
 </p>
