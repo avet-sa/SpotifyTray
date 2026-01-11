@@ -5,6 +5,8 @@
 ![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?logo=windows)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)
 ![License](https://img.shields.io/badge/license-MIT-green)
+![Build](https://github.com/avet-sa/SpotifyTray/actions/workflows/build-and-release.yml/badge.svg)
+![Release](https://img.shields.io/github/v/release/avet-sa/SpotifyTray?display_name=tag)
 
 ## Features
 
@@ -41,6 +43,13 @@ Each release includes ZIP archives that contain the full publish output. Downloa
 
 - `SpotifyTray-win-x64.zip` – recommended for most modern systems
 - `SpotifyTray-win-x86.zip` – for legacy 32-bit systems
+
+Each ZIP is accompanied by a `.sha256` checksum file for integrity verification. To verify:
+
+```powershell
+Get-FileHash -Algorithm SHA256 .\SpotifyTray-Publish-win-x64.zip
+```
+Compare the hash to the contents of `.sha256`.
 
 ### Installation Options
 
@@ -83,6 +92,20 @@ dotnet publish -c Release -r win-x86 /p:PublishSingleFile=true --self-contained 
 ```
 
 The entire `publish` folder contains all necessary files for distribution. Distribute the full folder, not just the `.exe`.
+
+## CI/CD
+
+Releases are automated via GitHub Actions:
+- On pushes to `master`: builds run and artifacts are uploaded.
+- On tags like `v1.0.2`: x64/x86 ZIPs are built, checksums generated, and a Release is published with assets.
+- Manual runs supported via the Actions tab (`Run workflow`).
+
+To create a release:
+
+```powershell
+git tag -a v1.0.2 -m "Release v1.0.2"
+git push origin v1.0.2
+```
 </details>
 
 ## Usage Guide

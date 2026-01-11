@@ -12,12 +12,17 @@ on:
 
 permissions:
   contents: write
+    workflow_dispatch:
+
 
 jobs:
   build:
     runs-on: windows-latest
     
     steps:
+      concurrency:
+        group: build-${{ github.ref }}
+        cancel-in-progress: true
     - name: Checkout code
       uses: actions/checkout@v4
       
@@ -27,6 +32,15 @@ jobs:
         dotnet-version: '8.0.x'
         
     - name: Restore dependencies
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
       run: dotnet restore
       
     - name: Build
@@ -41,7 +55,13 @@ jobs:
     runs-on: windows-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/'))
     
-    steps:
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/'))
+      concurrency:
+        group: publish-${{ github.ref }}
+        cancel-in-progress: true
+      strategy:
+        matrix:
+          runtime: [win-x64, win-x86]
     - name: Checkout code
       uses: actions/checkout@v4
       
@@ -55,41 +75,82 @@ jobs:
       
     - name: Publish win-x64 self-contained
       run: dotnet publish -c Release -r win-x64 /p:PublishSingleFile=true --self-contained true -o publish/win-x64
-      
-    - name: Publish win-x86 self-contained
-      run: dotnet publish -c Release -r win-x86 /p:PublishSingleFile=true --self-contained true -o publish/win-x86
-      
-    - name: Create archive (x64)
+      - name: Publish self-contained
+        run: dotnet publish -c Release -r ${{ matrix.runtime }} /p:PublishSingleFile=true /p:PublishReadyToRun=true --self-contained true -o publish/${{ matrix.runtime }}
       run: |
-        Compress-Archive -Path publish/win-x64/* -DestinationPath SpotifyTray-win-x64.zip
-      shell: pwsh
-      
-    - name: Create archive (x86)
-      run: |
-        Compress-Archive -Path publish/win-x86/* -DestinationPath SpotifyTray-win-x86.zip
-      shell: pwsh
-      
-    - name: Upload artifacts (x64)
+      - name: Add README.txt to package
+        run: |
+          $content = @(
+            'SpotifyTray',
+            '',
+            'Installation:',
+            '1) Extract the ZIP to a folder (e.g., C:\\Program Files\\SpotifyTray).',
+            '2) Run SpotifyTray.exe from the extracted folder.',
+            '',
+            'Notes:',
+            '- Keep all files from the publish folder together with the executable.',
+            '- For Windows Startup, create a shortcut in shell:startup.',
+            '',
+            'Project: https://github.com/avet-sa/SpotifyTray'
+          )
+          $content | Out-File -FilePath publish/${{ matrix.runtime }}/README.txt -Encoding utf8
+        shell: pwsh
+
+      - name: Create archive
+        run: |
+          Compress-Archive -Path publish/${{ matrix.runtime }}/* -DestinationPath SpotifyTray-Publish-${{ matrix.runtime }}.zip
+        shell: pwsh
       uses: actions/upload-artifact@v4
-      with:
+      - name: Upload folder artifact
         name: SpotifyTray-win-x64
         path: publish/win-x64
-        
-    - name: Upload artifacts (x86)
-      uses: actions/upload-artifact@v4
-      with:
-        name: SpotifyTray-win-x86
-        path: publish/win-x86
-        
-    - name: Create Release
+          name: SpotifyTray-Publish-${{ matrix.runtime }}-folder
+          path: publish/${{ matrix.runtime }}
+          retention-days: 30
+
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SpotifyTray-Publish-${{ matrix.runtime }}-zip
+          path: SpotifyTray-Publish-${{ matrix.runtime }}.zip
+          retention-days: 30
+
+    release:
+      needs: publish
+      runs-on: windows-latest
       if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          SpotifyTray-win-x64.zip
-          SpotifyTray-win-x86.zip
-        generate_release_notes: true
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      steps:
+      - name: Download x64 ZIP artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: SpotifyTray-Publish-win-x64-zip
+          path: ./artifacts
+
+      - name: Download x86 ZIP artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: SpotifyTray-Publish-win-x86-zip
+          path: ./artifacts
+
+      - name: Generate SHA256 checksums
+        run: |
+          Get-ChildItem -Path ./artifacts -Filter *.zip | ForEach-Object {
+            $hash = Get-FileHash -Algorithm SHA256 $_.FullName
+            $out = "$($hash.Hash)  $($_.Name)"
+            $out | Out-File -FilePath (Join-Path ./artifacts ($_.Name + '.sha256')) -Encoding ascii
+          }
+        shell: pwsh
+
+      - name: Create Release and upload assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/SpotifyTray-Publish-win-x64.zip
+            artifacts/SpotifyTray-Publish-win-x64.zip.sha256
+            artifacts/SpotifyTray-Publish-win-x86.zip
+            artifacts/SpotifyTray-Publish-win-x86.zip.sha256
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
