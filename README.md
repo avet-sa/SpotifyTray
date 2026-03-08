@@ -20,8 +20,7 @@
 
 ## Screenshots
 
-<img width="425" height="188" alt="image" src="https://github.com/user-attachments/assets/458ba8e5-c4c5-4663-bef0-1c570a556654" />
-
+<img width="425" height="188" alt="Mask group" src="https://github.com/user-attachments/assets/8345ad03-e762-40a1-9707-47e483f48163" />
 
 ## Quick Start
 
