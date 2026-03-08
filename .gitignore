@@ -122,9 +122,6 @@ ehthumbs_vista.db
 # Recycle Bin used on file shares
 $RECYCLE.BIN/
 
-# VS Code directories
-.vscode/
-
 # Windows Installer files
 *.cab
 *.msi
@@ -135,12 +132,7 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-# JetBrains Rider
-.idea/
-*.sln.iml
-
-# User-specific files
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
+# Test and coverage output
+TestResults/
+*.coverage
+*.coveragexml

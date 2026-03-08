@@ -57,13 +57,9 @@
             CornerRadius="10"
             BorderBrush="#3a3a3a"
             BorderThickness="1"
+            SnapsToDevicePixels="True"
+            ClipToBounds="True"
             Padding="16">
-        <Border.Effect>
-            <DropShadowEffect Color="Black"
-                              Opacity="0.6"
-                              BlurRadius="20"
-                              ShadowDepth="4"/>
-        </Border.Effect>
 
         <Grid>
             <Grid.ColumnDefinitions>
@@ -74,7 +70,9 @@
                     Width="110"
                     Height="110"
                     CornerRadius="8"
-                    Background="#2a2a2a">
+                    Background="#ff0000"
+                    Cursor="Hand"
+                    MouseLeftButtonUp="OpenSpotifyFromCover">
                 <Grid>
                     <!-- Blurred copy of cover underneath for glow effect -->
                     <Image x:Name="CoverBlurred"
@@ -121,19 +119,10 @@
                             Height="36"
                             Margin="4,0"
                             Style="{StaticResource MediaButton}">
-                        <Viewbox Width="26"
-                                 Height="26">
-                            <Canvas Width="24"
-                                    Height="24">
-                                <Rectangle Canvas.Left="6"
-                                           Canvas.Top="6"
-                                           Width="2"
-                                           Height="12"
-                                           Fill="White"/>
-                                <Path Data="M10,12 L18,6 L18,18 Z"
-                                      Fill="White"/>
-                            </Canvas>
-                        </Viewbox>
+                        <Image Source="pack://application:,,,/Icons/Prev.png"
+                               Width="16"
+                               Height="16"
+                               Stretch="Uniform"/>
                     </Button>
                     <Button x:Name="PlayPauseButton"
                             Click="PlayPause"
@@ -141,34 +130,21 @@
                             Height="40"
                             Margin="4,0"
                             Style="{StaticResource MediaButton}">
-                        <Viewbox Width="28"
-                                 Height="28">
-                            <Canvas Width="24"
-                                    Height="24">
-                                <Path x:Name="PlayPauseIcon"
-                                      Data="M8,5 L19,12 L8,19 Z"
-                                      Fill="White"/>
-                            </Canvas>
-                        </Viewbox>
+                        <Image x:Name="PlayPauseImage"
+                               Source="pack://application:,,,/Icons/Play.png"
+                               Width="18"
+                               Height="18"
+                               Stretch="Uniform"/>
                     </Button>
                     <Button Click="Next"
                             Width="36"
                             Height="36"
                             Margin="4,0"
                             Style="{StaticResource MediaButton}">
-                        <Viewbox Width="26"
-                                 Height="26">
-                            <Canvas Width="24"
-                                    Height="24">
-                                <Path Data="M6,6 L6,18 L14,12 Z"
-                                      Fill="White"/>
-                                <Rectangle Canvas.Left="16"
-                                           Canvas.Top="6"
-                                           Width="2"
-                                           Height="12"
-                                           Fill="White"/>
-                            </Canvas>
-                        </Viewbox>
+                        <Image Source="pack://application:,,,/Icons/Next.png"
+                               Width="16"
+                               Height="16"
+                               Stretch="Uniform"/>
                     </Button>
                 </StackPanel>
             </StackPanel>

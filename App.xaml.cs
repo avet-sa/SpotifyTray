@@ -87,6 +87,9 @@ public partial class App : Application
             ContextMenuStrip = contextMenu
         };
 
+        // Keep a single popup instance to avoid expensive re-creation on every click.
+        _window = new NowPlayingWindow(_media);
+
         _notifyIcon.Click += OnTrayIconClick;
     }
 
@@ -95,18 +98,23 @@ public partial class App : Application
         var mouseEvent = e as MouseEventArgs;
         if (mouseEvent?.Button != MouseButtons.Left) return;
 
-        if (_window == null || !_window.IsVisible)
+        if (_window == null) return;
+
+        // Clicking the tray icon can first deactivate the popup (auto-hide),
+        // then deliver the tray click. Ignore that immediate click to avoid reopen.
+        if (_window.WasRecentlyHiddenByOutsideClick(300))
         {
-            if (_media == null) return;
-            
-            _window = new NowPlayingWindow(_media);
-            _window.Show();
-            _window.Activate();
+            return;
         }
-        else
+
+        if (_window.IsVisible)
         {
             _window.Hide();
+            return;
         }
+
+        _window.Show();
+        _window.Activate();
     }
 
     private void OnMediaChanged()
@@ -155,41 +163,48 @@ public partial class App : Application
         {
             // Get fresh media info
             var (title, artist, album, cover) = await _media.GetNowPlayingAsync();
-            
-            // Update tooltip with current song info
-            Dispatcher.Invoke(() => UpdateTrayIconTooltip(title, artist));
-            
-            if (cover == null) return;
 
-            // Create a high-quality icon from the album cover
-            using var resized = new Bitmap(TrayIconSize, TrayIconSize);
-            using (var g = Graphics.FromImage(resized))
+            try
             {
-                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
-                g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
-                g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
-                g.DrawImage(cover, 0, 0, TrayIconSize, TrayIconSize);
-            }
-            
-            var iconHandle = resized.GetHicon();
-            var icon = Icon.FromHandle(iconHandle);
-            
-            // Update icon on UI thread
-            Dispatcher.Invoke(() =>
-            {
-                var oldIcon = _notifyIcon.Icon;
-                _notifyIcon.Icon = icon;
+                // Update tooltip with current song info
+                Dispatcher.Invoke(() => UpdateTrayIconTooltip(title, artist));
                 
-                if (oldIcon != null && oldIcon != SystemIcons.Application)
+                if (cover == null) return;
+
+                // Create a high-quality icon from the album cover
+                using var resized = new Bitmap(TrayIconSize, TrayIconSize);
+                using (var g = Graphics.FromImage(resized))
                 {
-                    DestroyIcon(oldIcon.Handle);
-                    oldIcon.Dispose();
+                    g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                    g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+                    g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+                    g.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+                    g.DrawImage(cover, 0, 0, TrayIconSize, TrayIconSize);
                 }
-            });
-            
-            // Clean up the icon handle
-            DestroyIcon(iconHandle);
+                
+                var iconHandle = resized.GetHicon();
+                var icon = Icon.FromHandle(iconHandle);
+                
+                // Update icon on UI thread
+                Dispatcher.Invoke(() =>
+                {
+                    var oldIcon = _notifyIcon.Icon;
+                    _notifyIcon.Icon = icon;
+                    
+                    if (oldIcon != null && oldIcon != SystemIcons.Application)
+                    {
+                        DestroyIcon(oldIcon.Handle);
+                        oldIcon.Dispose();
+                    }
+                });
+                
+                // Clean up the icon handle
+                DestroyIcon(iconHandle);
+            }
+            finally
+            {
+                cover?.Dispose();
+            }
         }
         catch (Exception ex)
         {
@@ -250,6 +265,7 @@ public partial class App : Application
         _cancellationTokenSource?.Cancel();
         _debounceTimer?.Dispose();
         _cancellationTokenSource?.Dispose();
+        _window?.Close();
         _notifyIcon?.Dispose();
         base.OnExit(e);
     }

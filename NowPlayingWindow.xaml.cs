@@ -1,15 +1,9 @@
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 using System.Windows.Media;
-using System.Windows.Media.Effects;
-using System.Windows.Shapes;
 using System.IO;
-using System.Drawing;
 using System.Windows.Media.Animation;
-using DrawingImage = System.Drawing.Image;
-using WpfPoint = System.Windows.Point;
-using WpfColor = System.Windows.Media.Color;
+using System.Diagnostics;
 
 namespace SpotifyTray;
 
@@ -18,15 +12,18 @@ public partial class NowPlayingWindow : Window
     // Constants
     private const int WindowOffsetX = 10;
     private const int WindowOffsetY = 60;
-    private const string PositionSettingsKey = "WindowPosition";
-    private const int AnimationDurationMs = 100;
+    private const int AnimationDurationMs = 90;
+    private const string PlayIconUri = "pack://application:,,,/Icons/Play.png";
+    private const string PauseIconUri = "pack://application:,,,/Icons/Pause.png";
     
     private readonly MediaController _media;
-    private Border? _backgroundBorder; // Reference to the main background border
     private System.Windows.Controls.Image? _coverImage; // Reference to the main cover image
     private System.Windows.Controls.Image? _coverBlurred; // Reference to the blurred cover image
+    private System.Windows.Controls.Image? _playPauseImage;
     private double _targetLeft; // Store the target position for animation
     private double _targetTop;
+    private bool _suspendPositionTracking;
+    private DateTime _lastOutsideHideUtc = DateTime.MinValue;
 
     public NowPlayingWindow(MediaController media)
     {
@@ -44,12 +41,10 @@ public partial class NowPlayingWindow : Window
         Left = _targetLeft;
         Top = _targetTop;
         
-        // Store reference to background border
-        _backgroundBorder = this.FindName("BackgroundBorder") as Border;
-        
         // Find the cover images
         _coverImage = this.FindName("Cover") as System.Windows.Controls.Image;
         _coverBlurred = this.FindName("CoverBlurred") as System.Windows.Controls.Image;
+        _playPauseImage = this.FindName("PlayPauseImage") as System.Windows.Controls.Image;
         
         UpdateDisplay();
     }
@@ -107,37 +102,52 @@ public partial class NowPlayingWindow : Window
         if (IsVisible) return; // Already visible
         
         // Make sure we're visible before animating
-        Opacity = 1;
+        _suspendPositionTracking = true;
+        Opacity = 0;
+        Left = _targetLeft;
+        Top = _targetTop;
         base.Show();
-        
-        // Animate slide in from bottom
-        var workArea = SystemParameters.WorkArea;
-        var slideAnimation = new DoubleAnimation
+
+        var fadeAnimation = new DoubleAnimation
         {
-            From = workArea.Bottom,
-            To = _targetTop,
-            Duration = TimeSpan.FromMilliseconds(AnimationDurationMs),
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            From = 0.0,
+            To = 1.0,
+            Duration = TimeSpan.FromMilliseconds(AnimationDurationMs)
         };
-        
-        BeginAnimation(Window.TopProperty, slideAnimation);
+        fadeAnimation.Completed += (s, e) => _suspendPositionTracking = false;
+        BeginAnimation(Window.OpacityProperty, fadeAnimation);
     }
     
     public new void Hide()
     {
-        // Animate slide out to the bottom
-        var workArea = SystemParameters.WorkArea;
-        var slideAnimation = new DoubleAnimation
+        if (!IsVisible) return;
+
+        _suspendPositionTracking = true;
+
+        var fadeAnimation = new DoubleAnimation
         {
-            From = Top,
-            To = workArea.Bottom,
-            Duration = TimeSpan.FromMilliseconds(AnimationDurationMs),
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+            From = Opacity,
+            To = 0.0,
+            Duration = TimeSpan.FromMilliseconds(AnimationDurationMs)
         };
-        
-        slideAnimation.Completed += (s, e) => base.Hide();
-        
-        BeginAnimation(Window.TopProperty, slideAnimation);
+        fadeAnimation.Completed += (s, e) =>
+        {
+            base.Hide();
+            Opacity = 1.0;
+            _suspendPositionTracking = false;
+        };
+        BeginAnimation(Window.OpacityProperty, fadeAnimation);
+    }
+
+    public bool WasRecentlyHiddenByOutsideClick(int milliseconds)
+    {
+        if (_lastOutsideHideUtc == DateTime.MinValue) return false;
+        var wasRecent = (DateTime.UtcNow - _lastOutsideHideUtc).TotalMilliseconds <= milliseconds;
+        if (wasRecent)
+        {
+            _lastOutsideHideUtc = DateTime.MinValue;
+        }
+        return wasRecent;
     }
 
     private void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
@@ -170,65 +180,61 @@ public partial class NowPlayingWindow : Window
             var (title, artist, album, cover) =
                 await _media.GetNowPlayingAsync();
 
-            Dispatcher.Invoke(() =>
+            try
             {
-                TitleText.Text = string.IsNullOrEmpty(title) ? "No media playing" : title;
-                ArtistText.Text = artist ?? "";
-                AlbumText.Text = album ?? "";
-                
-                // Update play/pause button icon
-                var isPlaying = _media.IsPlaying();
-                PlayPauseIcon.Data = Geometry.Parse(isPlaying 
-                    ? "M7,5 L10,5 L10,19 L7,19 Z M14,5 L17,5 L17,19 L14,19 Z"  // Pause icon
-                    : "M8,5 L19,12 L8,19 Z");   // Play icon
-
-                if (cover != null)
+                Dispatcher.Invoke(() =>
                 {
-                    try
+                    TitleText.Text = string.IsNullOrEmpty(title) ? "No media playing" : title;
+                    ArtistText.Text = artist ?? "";
+                    AlbumText.Text = album ?? "";
+                    
+                    // Update play/pause button icon
+                    var isPlaying = _media.IsPlaying();
+                    if (_playPauseImage != null)
                     {
-                        // Convert System.Drawing.Image to BitmapImage
-                        using var ms = new MemoryStream();
-                        cover.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                        ms.Position = 0;
+                        _playPauseImage.Source = new BitmapImage(new Uri(
+                            isPlaying ? PauseIconUri : PlayIconUri));
+                    }
 
-                        var img = new BitmapImage();
-                        img.BeginInit();
-                        img.CacheOption = BitmapCacheOption.OnLoad;
-                        img.StreamSource = ms;
-                        img.EndInit();
-
-                        // Set both the sharp and blurred cover images
-                        if (_coverImage != null)
-                            _coverImage.Source = img;
-                        
-                        if (_coverBlurred != null)
+                    if (cover != null)
+                    {
+                        try
                         {
-                            // Create a fresh BitmapImage for the blurred version
+                            // Convert System.Drawing.Image to a single BitmapImage and reuse for both layers.
+                            using var ms = new MemoryStream();
+                            cover.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
                             ms.Position = 0;
-                            var blurredImg = new BitmapImage();
-                            blurredImg.BeginInit();
-                            blurredImg.CacheOption = BitmapCacheOption.OnLoad;
-                            blurredImg.StreamSource = ms;
-                            blurredImg.EndInit();
-                            _coverBlurred.Source = blurredImg;
+
+                            var img = new BitmapImage();
+                            img.BeginInit();
+                            img.CacheOption = BitmapCacheOption.OnLoad;
+                            img.StreamSource = ms;
+                            img.EndInit();
+                            img.Freeze();
+
+                            if (_coverImage != null)
+                                _coverImage.Source = img;
+
+                            if (_coverBlurred != null)
+                                _coverBlurred.Source = img;
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Cover conversion error: {ex.Message}");
+                            ClearCoverImages();
                         }
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        System.Diagnostics.Debug.WriteLine($"Cover conversion error: {ex.Message}");
-                        if (_coverImage != null)
-                            _coverImage.Source = null;
-                        if (_coverBlurred != null)
-                            _coverBlurred.Source = null;
-                        ResetBackgroundGradient();
+                        System.Diagnostics.Debug.WriteLine("Cover is null");
+                        ClearCoverImages();
                     }
-                }
-                else
-                {
-                    System.Diagnostics.Debug.WriteLine("Cover is null");
-                    ResetBackgroundGradient();
-                }
-            });
+                });
+            }
+            finally
+            {
+                cover?.Dispose();
+            }
         }
         catch (Exception ex)
         {
@@ -236,11 +242,8 @@ public partial class NowPlayingWindow : Window
         }
     }
 
-    private void ResetBackgroundGradient()
+    private void ClearCoverImages()
     {
-        if (_backgroundBorder == null) return;
-        _backgroundBorder.Background = new SolidColorBrush(WpfColor.FromRgb(32, 32, 32));
-        
         if (_coverImage != null)
             _coverImage.Source = null;
         
@@ -266,9 +269,27 @@ public partial class NowPlayingWindow : Window
         if (task != null) await task;
     }
 
+    private void OpenSpotifyFromCover(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "spotify:",
+                UseShellExecute = true
+            });
+            e.Handled = true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"OpenSpotifyFromCover error: {ex.Message}");
+        }
+    }
+
     protected override void OnLocationChanged(EventArgs e)
     {
         base.OnLocationChanged(e);
+        if (_suspendPositionTracking || !IsVisible) return;
         // Update target position when window is manually moved
         _targetLeft = Left;
         _targetTop = Top;
@@ -278,6 +299,8 @@ public partial class NowPlayingWindow : Window
     protected override void OnDeactivated(EventArgs e)
     {
         base.OnDeactivated(e);
+        if (!IsVisible) return;
+        _lastOutsideHideUtc = DateTime.UtcNow;
         Hide();
     }
 

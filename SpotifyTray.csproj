@@ -14,5 +14,11 @@
   <ItemGroup>
     <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
   </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Icons\Prev.png" />
+    <Resource Include="Icons\Play.png" />
+    <Resource Include="Icons\Pause.png" />
+    <Resource Include="Icons\Next.png" />
+  </ItemGroup>
 
 </Project>
